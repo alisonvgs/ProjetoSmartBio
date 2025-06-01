@@ -21,18 +21,22 @@ def predicao(arq):
     return classes[predicted_label_index]
 
 
-arq = st.file_uploader("Insira o arquivo")
+uploaded_files = st.file_uploader("Insira um ou mais arquivos",
+                       accept_multiple_files=True,
+                       type=["png", "jpg", "jpeg", "gif", "bmp", "webp"]
+                       )
 
-if arq is not None:
-    resultado = predicao(arq)
-    st.image(arq, caption = "Predição: " + resultado)
-    prompt = f"O objeto detectado é um {resultado}. Você é um especialista em energia renovável e biodigestores. Avalie se esse objeto é apropriado para ser utilizado em um biodigestor anaeróbico. Se for adequado, forneça: Uma breve justificativa da adequação. A estimativa da energia que pode ser gerada (em kWh ou m³ de biogás), considerando uma quantidade padrão (ex: 1 kg). Se não for adequado, apresente um alerta explicando por que não deve ser colocado no biodigestor (por exemplo: presença de metais, plásticos, objetos não biodegradáveis, risco de contaminação, etc). Responda de forma objetiva e clara, com foco em aplicações práticas para gestão de resíduos e geração de energia. Responda em pt-br."
-    response = requests.post(
-    "http://localhost:11434/api/generate",
-    json={
-        "model": "llama3",
-        "prompt": prompt,
-        "stream": False
-    }
-)
-    st.write(response.json()["response"])
+if uploaded_files:
+    for uploaded_file in uploaded_files:
+        resultado = predicao(uploaded_file)
+        st.image(uploaded_file, caption = "Predição: " + resultado)
+        prompt = f"O objeto detectado é um {resultado}. Você é um especialista em energia renovável e biodigestores. Avalie se esse objeto é apropriado para ser utilizado em um biodigestor anaeróbico. Se for adequado, forneça: Uma breve justificativa da adequação. A estimativa da energia que pode ser gerada (em kWh ou m³ de biogás), considerando uma quantidade padrão (ex: 1 kg). Se não for adequado, apresente um alerta explicando por que não deve ser colocado no biodigestor (por exemplo: presença de metais, plásticos, objetos não biodegradáveis, risco de contaminação, etc). Responda de forma objetiva e clara, com foco em aplicações práticas para gestão de resíduos e geração de energia. Responda em pt-br."
+        response = requests.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": "llama3",
+                "prompt": prompt,
+                "stream": False
+            }
+        )
+        st.write(response.json()["response"])
