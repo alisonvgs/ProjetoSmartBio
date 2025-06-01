@@ -19,13 +19,13 @@ Link do modelo desenvolvido com Keras: https://drive.google.com/file/d/1SZC5xn94
 1. Adicione o seguinte comando no seu computador:
 
 ### No Linux/macOS
-export PYTHONPATH=$PYTHONPATH:/c/Users/caiubistaffoker/Documents/ProjetoSmartBio/
+export PYTHONPATH=$PYTHONPATH:/c/{caminho}/Documents/ProjetoSmartBio/
 
 ### No Windows (CMD)
-set PYTHONPATH=%PYTHONPATH%;C:\Users\caiubistaffoker\Documents\ProjetoSmartBio\
+set PYTHONPATH=%PYTHONPATH%;C:\{caminho}\Documents\ProjetoSmartBio\
 
 ### No Windows (PowerShell)
-$env:PYTHONPATH += ";C:\Users\caiubistaffoker\Documents\ProjetoSmartBio\"
+$env:PYTHONPATH += ";C:\{caminho}\Documents\ProjetoSmartBio\"
 
 2. Se estiver utilizando o Promp de Comando, acesse a pasta de origem e depois envie o comando:
 streamlit run c:\ {caminho} \ProjetoSmartBio\smartbio_app.py
