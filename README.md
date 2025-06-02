@@ -14,3 +14,18 @@ Desenvolver um biogestor automatizado com uma IA Generativa que atuará sobre um
 Base de dados para criação do modelo: https://www.kaggle.com/datasets/alistairking/recyclable-and-household-waste-classification/data
 
 Link do modelo desenvolvido com Keras: https://drive.google.com/file/d/1SZC5xn94Iq2NEs9sqlut9YLo0znoNvxt/view?usp=drive_link
+
+## Para rodar o código, siga as seguintes etapas:
+1. Adicione o seguinte comando no seu computador:
+
+### No Linux/macOS
+export PYTHONPATH=$PYTHONPATH:/c/{caminho}/Documents/ProjetoSmartBio/
+
+### No Windows (CMD)
+set PYTHONPATH=%PYTHONPATH%;C:\{caminho}\Documents\ProjetoSmartBio\
+
+### No Windows (PowerShell)
+$env:PYTHONPATH += ";C:\{caminho}\Documents\ProjetoSmartBio\"
+
+2. Se estiver utilizando o Promp de Comando, acesse a pasta de origem e depois envie o comando:
+streamlit run c:\{caminho}\ProjetoSmartBio\smartbio_app.py
