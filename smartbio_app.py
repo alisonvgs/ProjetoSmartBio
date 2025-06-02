@@ -30,6 +30,9 @@ if "consumo_energia" not in st.session_state:
         "Geração de pães": 0,
         "Autoconsumo": 0
     }
+if "feedback" not in st.session_state:
+    st.session_state.feedback = []
+
 
 def navegar_para(pagina):
     st.session_state.page = pagina
@@ -142,39 +145,30 @@ def producao_energia():
     if "processado" not in st.session_state:
         st.session_state.processado = False
     if "quantidade_kg" not in st.session_state:
-        st.session_state.quantidade_kg = 5.0  # Exemplo fixo, ou peça ao usuário
+        st.session_state.quantidade_kg = 5.0
     if "energia_gerada" not in st.session_state:
         st.session_state.energia_gerada = None
 
-    # Ocultar upload e análise se já está processando
     if not st.session_state.confirmado and not st.session_state.processado:
-        uploaded_files = st.file_uploader("📷 Envie uma ou mais imagens do resíduo",
-                                          accept_multiple_files=True,
-                                          type=["png", "jpg", "jpeg", "gif", "bmp", "webp"])
+        arq = st.file_uploader("📷 Envie a imagem do resíduo", type=["jpg", "png", "jpeg"])
 
-        if uploaded_files and not st.session_state.resultado:
-            for uploaded_file in uploaded_files:
-                st.image(uploaded_file, caption="Imagem enviada", use_column_width=True)
+        if arq and not st.session_state.resultado:
+            st.image(arq, caption="Imagem enviada", use_column_width=True)
 
-                resultado = predizer_imagem(uploaded_file)
-                st.session_state.resultado = resultado
+            resultado = predizer_imagem(arq)
+            st.session_state.resultado = resultado
 
-                prompt = f"""O objeto detectado é um {resultado}. Você é um especialista em energia de biogás, com conhecimento profundo sobre biodigestores, digestão anaeróbia e os tipos de substratos utilizados na produção de biogás. Avalie se este material é adequado para produção de biogás, considerando teor de matéria orgânica, biodegradabilidade, relação C/N e potencial de produção de metano. Seja curto na sua resposta. Responda em português técnico e claro."""
+            prompt = f"""O objeto detectado é um {resultado}. Você é um especialista em energia de biogás, com conhecimento profundo sobre biodigestores, digestão anaeróbia e os tipos de substratos utilizados na produção de biogás. Avalie se este material é adequado para produção de biogás, considerando teor de matéria orgânica, biodegradabilidade, relação C/N e potencial de produção de metano. Seja curto na sua resposta. Responda em português técnico e claro."""
 
-                with st.spinner("🔍 Analisando viabilidade do resíduo..."):
-                    avaliacao = llm_com_llama3(prompt)
-                    st.session_state.avaliacao_llm = avaliacao
-
-                
-                st.success(f"✅ Objeto identificado: **{st.session_state.resultado}**")
-                st.markdown("### 🧠 Avaliação do Especialista:")
-                st.write(st.session_state.avaliacao_llm)
-
-    if st.button("🏠 Voltar ao menu"):
-        navegar_para("home")
-        st.rerun()
+            with st.spinner("🔍 Analisando viabilidade do resíduo..."):
+                avaliacao = llm_com_llama3(prompt)
+                st.session_state.avaliacao_llm = avaliacao
 
     if st.session_state.resultado and not st.session_state.confirmado and not st.session_state.processado:
+        st.success(f"✅ Objeto identificado: **{st.session_state.resultado}**")
+        st.markdown("### 🧠 Avaliação do Especialista:")
+        st.write(st.session_state.avaliacao_llm)
+
         col1, col2 = st.columns(2)
         with col1:
             if st.button("✅ Confirmar material"):
@@ -184,16 +178,15 @@ def producao_energia():
             if st.button("🔄 Inserir outro produto"):
                 for chave in ["resultado", "avaliacao_llm", "confirmado", "processado", "energia_gerada"]:
                     st.session_state[chave] = None
-                    st.rerun()
+                st.rerun()
 
     if st.session_state.confirmado and not st.session_state.processado:
         etapas = [f"Pesando {st.session_state.resultado}", "Triturando", f"Decompondo {st.session_state.resultado}"]
         mostrar_circulos(etapas)
 
-        # Cálculo fictício da energia gerada
-        st.session_state.energia_gerada = round(st.session_state.quantidade_kg * 0.65, 2)  # 0.65 kWh por kg (exemplo)
+        st.session_state.energia_gerada = round(st.session_state.quantidade_kg * 0.65, 2)
         st.session_state.energia_total += st.session_state.energia_gerada
-        # Registro do material usado
+
         material = st.session_state.resultado
         if material in st.session_state.materiais_usados:
             st.session_state.materiais_usados[material] += st.session_state.quantidade_kg
@@ -212,12 +205,56 @@ def producao_energia():
             </div>
         """, unsafe_allow_html=True)
 
-        # st.markdown("###")
-        # if st.button("🏠 Voltar ao menu"):
-        #     for chave in ["resultado", "avaliacao_llm", "confirmado", "processado", "energia_gerada"]:
-        #         st.session_state[chave] = None
-        #     navegar_para("home")
-        #     st.rerun()
+        st.subheader("🔧 Feedback sobre o processo:")
+
+        likert = [
+            "1 - Muito imprecisa",
+            "2 - Imprecisa",
+            "3 - Neutra",
+            "4 - Precisa",
+            "5 - Muito precisa"
+        ]
+
+        st.markdown("### 📏 A pesagem pareceu correta?")
+        pesagem_feedback = st.radio(
+            label="Selecione uma opção:",
+            options=likert,
+            index=2,
+            horizontal=True,
+            key="pesagem_feedback"
+
+        )
+
+        st.markdown("### ⚡ A quantidade de energia gerada pareceu correta?")
+        energia_feedback = st.radio(
+            label="Selecione uma opção:",
+            options=likert,
+            index=2,
+            horizontal=True,
+            key="energia_feedback"
+
+        )
+
+        st.markdown("### 💡 Tem alguma sugestão de melhoria ou comentário?")
+        comentario = st.text_area(
+            label="Escreva sua sugestão, crítica ou comentário aqui...",
+            placeholder="Ex.: A quantidade de energia pareceu um pouco alta para esse material."
+        )
+
+        if st.button("💾 Enviar Feedback e Voltar ao menu"):
+            st.session_state.feedback.append({
+                "material": st.session_state.resultado,
+                "quantidade_kg": st.session_state.quantidade_kg,
+                "energia_gerada_kWh": st.session_state.energia_gerada,
+                "pesagem_feedback": pesagem_feedback,
+                "energia_feedback": energia_feedback,
+                "comentario": comentario
+            })
+            for chave in ["resultado", "avaliacao_llm", "confirmado", "processado", "energia_gerada"]:
+                st.session_state[chave] = None
+            navegar_para("home")
+            st.rerun()
+
 
 
 def utilizar_energia():
@@ -275,8 +312,9 @@ def utilizar_energia():
 
 
 
+
 def painel():
-    st.markdown("<h2 style='text-align: center; color: green;'>📊 Painel de Energia</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: green;'>📊 Painel de Energia e Feedback</h2>", unsafe_allow_html=True)
     st.markdown("---")
 
     col1, col2 = st.columns(2)
@@ -291,7 +329,7 @@ def painel():
             st.info("Nenhum material foi utilizado ainda.")
 
     with col2:
-        st.markdown("###  Forma do Consumo de Energia")
+        st.markdown("### Consumo de Energia")
         if any(v > 0 for v in st.session_state.consumo_energia.values()):
             df_consumo = pd.DataFrame.from_dict(st.session_state.consumo_energia, orient='index', columns=['Energia usada (kWh)'])
             fig_consumo = px.bar(df_consumo, x=df_consumo.index, y='Energia usada (kWh)', color=df_consumo.index, title="Consumo de Energia")
@@ -299,9 +337,49 @@ def painel():
         else:
             st.info("A energia ainda não foi consumida.")
 
-        if st.button("🏠 Voltar ao menu"):
-                navegar_para("home")
-                st.rerun()
+    st.markdown("---")
+    st.subheader("📝 Feedback dos Usuários")
+    if st.session_state.feedback:
+        df_feedback = pd.DataFrame(st.session_state.feedback)
+        st.dataframe(df_feedback)
+
+        likert_order = [
+            "1 - Muito imprecisa",
+            "2 - Imprecisa",
+            "3 - Neutra",
+            "4 - Precisa",
+            "5 - Muito precisa"
+        ]
+
+        pesagem_counts = df_feedback["pesagem_feedback"].value_counts().reindex(likert_order, fill_value=0)
+        energia_counts = df_feedback["energia_feedback"].value_counts().reindex(likert_order, fill_value=0)
+
+        fig_pesagem = px.bar(
+            pesagem_counts,
+            x=pesagem_counts.values,
+            y=pesagem_counts.index,
+            orientation="h",
+            labels={"y": "Avaliação", "x": "Quantidade"},
+            title="📏 Avaliação da Precisão da Pesagem"
+        )
+        st.plotly_chart(fig_pesagem, use_container_width=True)
+
+        fig_energia = px.bar(
+            energia_counts,
+            x=energia_counts.values,
+            y=energia_counts.index,
+            orientation="h",
+            labels={"y": "Avaliação", "x": "Quantidade"},
+            title="⚡ Avaliação da Precisão da Energia Gerada"
+        )
+        st.plotly_chart(fig_energia, use_container_width=True)
+
+    else:
+        st.info("Ainda não há feedback coletado.")
+
+    if st.button("🏠 Voltar ao menu"):
+        navegar_para("home")
+        st.rerun()
 
 
 if st.session_state.page == "producao":
