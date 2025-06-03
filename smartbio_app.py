@@ -150,12 +150,15 @@ def producao_energia():
         st.session_state.energia_gerada = None
 
     if not st.session_state.confirmado and not st.session_state.processado:
-        arq = st.file_uploader("📷 Envie a imagem do resíduo", type=["jpg", "png", "jpeg"])
+        uploaded_files = st.file_uploader("📷 Envie uma ou mais imagens do resíduo",
+                                          accept_multiple_files=True,
+                                          type=["png", "jpg", "jpeg", "gif", "bmp", "webp"])
 
-        if arq and not st.session_state.resultado:
-            st.image(arq, caption="Imagem enviada", use_column_width=True)
+        if uploaded_files and not st.session_state.resultado:
+            for uploaded_file in uploaded_files:
+                st.image(uploaded_file, caption="Imagem enviada", use_column_width=True)
 
-            resultado = predizer_imagem(arq)
+            resultado = predizer_imagem(uploaded_file)
             st.session_state.resultado = resultado
 
             prompt = f"""O objeto detectado é um {resultado}. Você é um especialista em energia de biogás, com conhecimento profundo sobre biodigestores, digestão anaeróbia e os tipos de substratos utilizados na produção de biogás. Avalie se este material é adequado para produção de biogás, considerando teor de matéria orgânica, biodegradabilidade, relação C/N e potencial de produção de metano. Seja curto na sua resposta. Responda em português técnico e claro."""
