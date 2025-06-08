@@ -1,8 +1,11 @@
 import tensorflow as tf
+import os
 
 @tf.keras.utils.register_keras_serializable()
 def carregar_modelo():
-    return tf.keras.models.load_model("resNet.keras")
+    script_dir = os.path.dirname(__file__)
+    model_path = os.path.join(script_dir, "resNet.keras")
+    return tf.keras.models.load_model(model_path)
 
 def predizer_imagem(arq):
     classes = ['aerosol_cans', 'aluminum_food_cans', 'aluminum_soda_cans', 'cardboard_boxes', 'cardboard_packaging',
