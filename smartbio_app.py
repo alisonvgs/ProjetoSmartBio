@@ -157,21 +157,25 @@ def producao_energia():
         if uploaded_files and not st.session_state.resultado:
             for uploaded_file in uploaded_files:
                 st.image(uploaded_file, caption="Imagem enviada", use_column_width=True)
+    
+                resultado = predizer_imagem(uploaded_file)
+                st.session_state.resultado = resultado
+    
+                prompt = f"""O objeto detectado é um {resultado}. Você é um especialista em energia de biogás, com conhecimento profundo sobre biodigestores, digestão anaeróbia e os tipos de substratos utilizados na produção de biogás. Avalie se este material é adequado para produção de biogás, considerando teor de matéria orgânica, biodegradabilidade, relação C/N e potencial de produção de metano. Seja curto na sua resposta. Responda em português técnico e claro."""
+    
+                with st.spinner("🔍 Analisando viabilidade do resíduo..."):
+                    avaliacao = llm_com_llama3(prompt)
+                    st.session_state.avaliacao_llm = avaliacao
+                    
+                st.success(f"✅ Objeto identificado: **{st.session_state.resultado}**")
+                st.markdown("### 🧠 Avaliação do Especialista:")
+                st.write(st.session_state.avaliacao_llm)
 
-            resultado = predizer_imagem(uploaded_file)
-            st.session_state.resultado = resultado
-
-            prompt = f"""O objeto detectado é um {resultado}. Você é um especialista em energia de biogás, com conhecimento profundo sobre biodigestores, digestão anaeróbia e os tipos de substratos utilizados na produção de biogás. Avalie se este material é adequado para produção de biogás, considerando teor de matéria orgânica, biodegradabilidade, relação C/N e potencial de produção de metano. Seja curto na sua resposta. Responda em português técnico e claro."""
-
-            with st.spinner("🔍 Analisando viabilidade do resíduo..."):
-                avaliacao = llm_com_llama3(prompt)
-                st.session_state.avaliacao_llm = avaliacao
+    if st.button("🏠 Voltar ao menu"):
+        navegar_para("home")
+        st.rerun()
 
     if st.session_state.resultado and not st.session_state.confirmado and not st.session_state.processado:
-        st.success(f"✅ Objeto identificado: **{st.session_state.resultado}**")
-        st.markdown("### 🧠 Avaliação do Especialista:")
-        st.write(st.session_state.avaliacao_llm)
-
         col1, col2 = st.columns(2)
         with col1:
             if st.button("✅ Confirmar material"):
