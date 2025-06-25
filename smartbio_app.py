@@ -7,14 +7,13 @@ from llm import llm_com_llama3
 
 st.set_page_config(
     page_title="SMARTBIO",
-    page_icon="🔋",
+    page_icon="mascote.jpg",  # Caminho para a imagem
     menu_items={
         'Get Help': 'https://www.smartbio.com.br/',
         'Report a bug': 'https://www.smartbio.com.br/',
         'About': "Developed by SmartBio LTDA."
     }
 )
-
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
@@ -86,7 +85,17 @@ def mostrar_circulos(etapas):
                 </div>
             """, unsafe_allow_html=True)
 
+import streamlit as st
+import base64
+
+def carregar_mascote_base64(caminho_imagem):
+    with open(caminho_imagem, "rb") as img_file:
+        b64_bytes = base64.b64encode(img_file.read())
+        return b64_bytes.decode()
+
 def tela_inicial():
+    mascote_b64 = carregar_mascote_base64("mascote.jpg")
+
     st.markdown("""
         <style>
             body { background-color: #e6ffe6; }
@@ -99,7 +108,14 @@ def tela_inicial():
         </style>
     """, unsafe_allow_html=True)
 
-    st.markdown("<h1 style='text-align: center; color: green;'>🔋 SMARTBIO</h1>", unsafe_allow_html=True)
+    st.markdown(f"""
+        <h1 style='text-align: center; color: green;'>
+            <img src="data:image/jpg;base64,{mascote_b64}" 
+                 style='height: 80px; vertical-align: middle; margin-right: 10px;'/>
+            SMARTBIO
+        </h1>
+    """, unsafe_allow_html=True)
+
     st.markdown("<h3 style='text-align: center;'>O que deseja fazer hoje?</h3>", unsafe_allow_html=True)
 
     # Bateria visual
@@ -121,148 +137,185 @@ def tela_inicial():
             navegar_para("painel")
 
     st.markdown(f"""
-            <div style="text-align: center; margin-top: 30px;">
-                <div style="width: {largura_total}px; height: {altura}px; border: 2px solid #555; border-radius: 5px; display: inline-block; position: relative;">
-                    <div style="width: {largura_carregada}px; height: 100%; background-color: {cor}; border-radius: 5px 0 0 5px;"></div>
-                    <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: blak;">
-                        {round(st.session_state.energia_total, 2)} kWh
-                    </div>
+        <div style="text-align: center; margin-top: 30px;">
+            <div style="width: {largura_total}px; height: {altura}px; border: 2px solid #555; border-radius: 5px; display: inline-block; position: relative;">
+                <div style="width: {largura_carregada}px; height: 100%; background-color: {cor}; border-radius: 5px 0 0 5px;"></div>
+                <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: black;">
+                    {round(st.session_state.energia_total, 2)} kWh
                 </div>
             </div>
-        """, unsafe_allow_html=True)
+        </div>
+    """, unsafe_allow_html=True)
+
 
 def producao_energia():
-    st.markdown("<h2 style='text-align: center; color: green;'>🔋 SMARTBIO - Produção de Energia</h2>", unsafe_allow_html=True)
+    st.markdown(
+        "<h2 style='text-align: center; color: green;'>🔋 SMARTBIO - Produção de Energia</h2>",
+        unsafe_allow_html=True
+    )
     st.markdown("---")
     st.subheader("🧪 Análise de resíduo para produção de energia")
 
-    if "resultado" not in st.session_state:
-        st.session_state.resultado = None
-    if "avaliacao_llm" not in st.session_state:
-        st.session_state.avaliacao_llm = None
-    if "confirmado" not in st.session_state:
-        st.session_state.confirmado = False
-    if "processado" not in st.session_state:
-        st.session_state.processado = False
+    # --- Inicialização de estados ---
     if "quantidade_kg" not in st.session_state:
         st.session_state.quantidade_kg = 5.0
-    if "energia_gerada" not in st.session_state:
-        st.session_state.energia_gerada = None
+    if "energia_total" not in st.session_state:
+        st.session_state.energia_total = 0.0
+    if "materiais_usados" not in st.session_state:
+        st.session_state.materiais_usados = {}
+    if "feedback" not in st.session_state:
+        st.session_state.feedback = []
+    if "residuos" not in st.session_state:
+        st.session_state.residuos = []
+    if "arquivos_processados" not in st.session_state:
+        st.session_state.arquivos_processados = set()
+    if "indice_atual" not in st.session_state:
+        st.session_state.indice_atual = 0
+    if "mostrar_upload" not in st.session_state:
+        st.session_state.mostrar_upload = True
 
-    if not st.session_state.confirmado and not st.session_state.processado:
-        uploaded_files = st.file_uploader("📷 Envie uma ou mais imagens do resíduo",
-                                          accept_multiple_files=True,
-                                          type=["png", "jpg", "jpeg", "gif", "bmp", "webp"])
+    # **Resetar mostrar_upload para True se não houver resíduos (início novo)**
+    if not st.session_state.residuos:
+        st.session_state.mostrar_upload = True
 
-        if uploaded_files and not st.session_state.resultado:
-            for uploaded_file in uploaded_files:
-                st.image(uploaded_file, caption="Imagem enviada", use_column_width=True)
-    
-                resultado = predizer_imagem(uploaded_file)
-                st.session_state.resultado = resultado
-    
-                prompt = f"""O objeto detectado é um {resultado}. Você é um especialista em energia de biogás, com conhecimento profundo sobre biodigestores, digestão anaeróbia e os tipos de substratos utilizados na produção de biogás. Avalie se este material é adequado para produção de biogás, considerando teor de matéria orgânica, biodegradabilidade, relação C/N e potencial de produção de metano. Seja curto na sua resposta. Responda em português técnico e claro."""
-    
-                with st.spinner("🔍 Analisando viabilidade do resíduo..."):
-                    avaliacao = llm_com_llama3(prompt)
-                    st.session_state.avaliacao_llm = avaliacao
-                    
-                st.success(f"✅ Objeto identificado: **{st.session_state.resultado}**")
-                st.markdown("### 🧠 Avaliação do Especialista:")
-                st.write(st.session_state.avaliacao_llm)
 
-    if st.button("🏠 Voltar ao menu"):
-        navegar_para("home")
-        st.rerun()
-
-    if st.session_state.resultado and not st.session_state.confirmado and not st.session_state.processado:
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("✅ Confirmar material"):
-                st.session_state.confirmado = True
-                st.rerun()
-        with col2:
-            if st.button("🔄 Inserir outro produto"):
-                for chave in ["resultado", "avaliacao_llm", "confirmado", "processado", "energia_gerada"]:
-                    st.session_state[chave] = None
-                st.rerun()
-
-    if st.session_state.confirmado and not st.session_state.processado:
-        etapas = [f"Pesando {st.session_state.resultado}", "Triturando", f"Decompondo {st.session_state.resultado}"]
-        mostrar_circulos(etapas)
-
-        st.session_state.energia_gerada = round(st.session_state.quantidade_kg * 0.65, 2)
-        st.session_state.energia_total += st.session_state.energia_gerada
-
-        material = st.session_state.resultado
-        if material in st.session_state.materiais_usados:
-            st.session_state.materiais_usados[material] += st.session_state.quantidade_kg
-        else:
-            st.session_state.materiais_usados[material] = st.session_state.quantidade_kg
-
-        st.session_state.processado = True
-
-    if st.session_state.processado:
-        st.success("✅ Processo concluído com sucesso!")
-        st.markdown(f"""
-            <div style='font-size: 20px; text-align: center; margin-top: 20px;'>
-                A quantidade de <strong>{st.session_state.quantidade_kg} kg</strong> de 
-                <strong>{st.session_state.resultado}</strong> gerou aproximadamente 
-                <strong>{st.session_state.energia_gerada} kWh</strong> de energia! ⚡️
-            </div>
-        """, unsafe_allow_html=True)
-
-        st.subheader("🔧 Feedback sobre o processo:")
-
-        likert = [
-            "1 - Muito imprecisa",
-            "2 - Imprecisa",
-            "3 - Neutra",
-            "4 - Precisa",
-            "5 - Muito precisa"
-        ]
-
-        st.markdown("### 📏 A pesagem pareceu correta?")
-        pesagem_feedback = st.radio(
-            label="Selecione uma opção:",
-            options=likert,
-            index=2,
-            horizontal=True,
-            key="pesagem_feedback"
-
+    # --- Upload e pré-processamento múltiplo ---
+    uploaded_files = None
+    if st.session_state.mostrar_upload:
+        uploaded_files = st.file_uploader(
+            "📷 Envie uma ou mais imagens do resíduo",
+            accept_multiple_files=True,
+            type=["png", "jpg", "jpeg", "gif", "bmp", "webp"]
         )
 
-        st.markdown("### ⚡ A quantidade de energia gerada pareceu correta?")
-        energia_feedback = st.radio(
-            label="Selecione uma opção:",
-            options=likert,
-            index=2,
-            horizontal=True,
-            key="energia_feedback"
+    if uploaded_files:
+        novos = [f for f in uploaded_files
+                 if f.name not in st.session_state.arquivos_processados]
+        for f in novos:
+            mat = predizer_imagem(f)
+            prompt = f"O objeto detectado é um {mat}. Você é um especialista em energia de biogás… seja sucinto sobre o material dando destaque sobre se é bom ou ruim para um biogas"
+            with st.spinner(f"🔍 Analisando viabilidade: {mat}"):
+                ava = llm_com_llama3(prompt)
 
-        )
-
-        st.markdown("### 💡 Tem alguma sugestão de melhoria ou comentário?")
-        comentario = st.text_area(
-            label="Escreva sua sugestão, crítica ou comentário aqui...",
-            placeholder="Ex.: A quantidade de energia pareceu um pouco alta para esse material."
-        )
-
-        if st.button("💾 Enviar Feedback e Voltar ao menu"):
-            st.session_state.feedback.append({
-                "material": st.session_state.resultado,
-                "quantidade_kg": st.session_state.quantidade_kg,
-                "energia_gerada_kWh": st.session_state.energia_gerada,
-                "pesagem_feedback": pesagem_feedback,
-                "energia_feedback": energia_feedback,
-                "comentario": comentario
+            st.session_state.residuos.append({
+                "nome": f.name,
+                "imagem": f,
+                "material": mat,
+                "avaliacao": ava,
+                "processado": False,
+                "energia": 0.0
             })
-            for chave in ["resultado", "avaliacao_llm", "confirmado", "processado", "energia_gerada"]:
-                st.session_state[chave] = None
+            st.session_state.arquivos_processados.add(f.name)
+
+        if novos:
+            st.session_state.indice_atual = 0
+            st.session_state.mostrar_upload = False
+            st.rerun()
+
+    # --- Fluxo para cada resíduo ---
+    if st.session_state.indice_atual < len(st.session_state.residuos):
+        item = st.session_state.residuos[st.session_state.indice_atual]
+
+        st.image(item["imagem"], use_container_width=True, caption=item["nome"])
+        st.success(f"🔍 Identificado como: **{item['material']}**")
+        st.markdown("### 🧠 Avaliação do Especialista:")
+        st.write(item["avaliacao"])
+
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("✅ Confirmar e avançar"):
+                energia = round(st.session_state.quantidade_kg * 0.65, 2)
+                item["energia"] = energia
+                item["processado"] = True
+                st.session_state.energia_total += energia
+                st.session_state.materiais_usados.setdefault(
+                    item["material"], 0.0
+                )
+                st.session_state.materiais_usados[item["material"]] += st.session_state.quantidade_kg
+
+                st.session_state.indice_atual += 1
+                st.rerun()
+
+        with c2:
+            if st.button("❌ Rejeitar e avançar"):
+                st.session_state.indice_atual += 1
+                st.rerun()
+
+    # --- Quando terminar a lista ---
+    elif st.session_state.residuos:
+        st.success("🎉 Todos os materiais passaram pelo fluxo!")
+
+        if "mostrar_animacao" not in st.session_state:
+            st.session_state.mostrar_animacao = True
+
+        if st.session_state.mostrar_animacao:
+            placeholder_animacao = st.empty()
+            with placeholder_animacao:
+                mostrar_circulos(["Análise", "Processamento", "Geração", "Resumo", "Feedback"])
+            placeholder_animacao.empty()  # Oculta os círculos
+            st.session_state.mostrar_animacao = False  # Desativa para não repetir após feedback
+            st.rerun()
+
+        st.markdown("## ⚡ Resumo de Energia Produzida:")
+        for item in st.session_state.residuos:
+            if item["processado"]:
+                st.markdown(f"**🧾 {item['material']}** — {item['energia']} kWh")
+
+        st.markdown("## 🧠 Feedback por Material:")
+        feedbacks_temp = []
+
+        for idx, item in enumerate(st.session_state.residuos):
+            if item["processado"]:
+                with st.expander(f"💬 Feedback para: {item['material']} ({item['nome']})", expanded=True):
+                    st.image(item["imagem"], width=200)
+                    likert = [
+                        "1 - Muito imprecisa", "2 - Imprecisa",
+                        "3 - Neutra", "4 - Precisa", "5 - Muito precisa"
+                    ]
+                    pes_fb = st.radio(
+                        f"📏 A pesagem de **{item['material']}** pareceu correta?",
+                        likert, index=2, key=f"pes_{idx}"
+                    )
+                    eng_fb = st.radio(
+                        f"⚡ A energia estimada ({item['energia']} kWh) pareceu correta?",
+                        likert, index=2, key=f"eng_{idx}"
+                    )
+                    com = st.text_area(f"💡 Comentários para {item['material']}:", key=f"com_{idx}")
+
+                    feedbacks_temp.append({
+                        "material": item["material"],
+                        "quantidade_kg": st.session_state.quantidade_kg,
+                        "energia_gerada_kWh": item["energia"],
+                        "pesagem_feedback": pes_fb,
+                        "energia_feedback": eng_fb,
+                        "comentario": com
+                    })
+
+        if st.button("💾 Enviar Feedbacks e Voltar"):
+            st.session_state.feedback.extend(feedbacks_temp)
+            # Resetar tudo e voltar ao menu
+            st.session_state.residuos = []
+            st.session_state.arquivos_processados = set()
+            st.session_state.indice_atual = 0
+            st.session_state.mostrar_upload = False
+            st.session_state.mostrar_animacao = True  # Reativa apenas quando voltar ao fluxo
             navegar_para("home")
             st.rerun()
 
 
+        if st.button("➕ Adicionar novo material"):
+            st.session_state.mostrar_upload = True
+            st.session_state.indice_atual = len(st.session_state.residuos)
+            st.rerun()
+
+    # --- Botão de saída a qualquer momento ---
+    if st.button("🏠 Voltar ao menu"):
+        st.session_state.residuos = []
+        st.session_state.arquivos_processados = set()
+        st.session_state.indice_atual = 0
+        st.session_state.mostrar_upload = False
+        navegar_para("home")
+        st.rerun()
 
 def utilizar_energia():
     st.markdown("<h2 style='text-align: center; color: green;'>⚡ Utilizar Energia</h2>", unsafe_allow_html=True)
